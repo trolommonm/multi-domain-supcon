@@ -423,10 +423,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # acc1/acc5 are (K+1)-way contrast classifier accuracy
         # measure accuracy and record loss
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        # acc1, acc5 = accuracy(output, target, topk=(1, 5))
         losses.update(loss.item(), images[0].size(0))
-        top1.update(acc1[0], images[0].size(0))
-        top5.update(acc5[0], images[0].size(0))
+        # top1.update(acc1[0], images[0].size(0))
+        # top5.update(acc5[0], images[0].size(0))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
