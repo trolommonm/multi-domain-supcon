@@ -41,7 +41,7 @@ model_names = sorted(
 )
 
 parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
-parser.add_argument("data", metavar="DIR", help="path to dataset")
+# parser.add_argument("data", metavar="DIR", help="path to dataset")
 parser.add_argument(
     "-a",
     "--arch",
