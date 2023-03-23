@@ -187,7 +187,7 @@ def main():
 
     args.model_path = "./save/SupCon/domainnet_models"
     args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
-        format(args.arch, args.learning_rate, args.weight_decay, args.batch_size, args.moco_t, args.trial)
+        format(args.arch, args.lr, args.wd, args.batch_size, args.moco_t, args.trial)
 
     args.save_folder = os.path.join(args.model_path, args.model_name)
     if not os.path.isdir(args.save_folder):
