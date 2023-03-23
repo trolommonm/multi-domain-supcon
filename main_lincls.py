@@ -26,7 +26,6 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
 
-
 model_names = sorted(
     name
     for name in models.__dict__
@@ -68,8 +67,8 @@ parser.add_argument(
     type=int,
     metavar="N",
     help="mini-batch size (default: 256), this is the total "
-    "batch size of all GPUs on the current node when "
-    "using Data Parallel or Distributed Data Parallel",
+         "batch size of all GPUs on the current node when "
+         "using Data Parallel or Distributed Data Parallel",
 )
 parser.add_argument(
     "--lr",
@@ -145,9 +144,9 @@ parser.add_argument(
     "--multiprocessing-distributed",
     action="store_true",
     help="Use multi-processing distributed training to launch "
-    "N processes per node, which has N GPUs. This is the "
-    "fastest way to use PyTorch for either single node or "
-    "multi node data parallel training",
+         "N processes per node, which has N GPUs. This is the "
+         "fastest way to use PyTorch for either single node or "
+         "multi node data parallel training",
 )
 
 parser.add_argument(
@@ -202,7 +201,6 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # suppress printing if not master
     if args.multiprocessing_distributed and args.gpu != 0:
-
         def print_pass(*args):
             pass
 
@@ -247,10 +245,10 @@ def main_worker(gpu, ngpus_per_node, args):
             for k in list(state_dict.keys()):
                 # retain only encoder_q up to before the embedding layer
                 if k.startswith("module.encoder_q") and not k.startswith(
-                    "module.encoder_q.fc"
+                        "module.encoder_q.fc"
                 ):
                     # remove prefix
-                    state_dict[k[len("module.encoder_q.") :]] = state_dict[k]
+                    state_dict[k[len("module.encoder_q."):]] = state_dict[k]
                 # delete renamed or unused k
                 del state_dict[k]
 
@@ -337,17 +335,27 @@ def main_worker(gpu, ngpus_per_node, args):
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
 
-    train_dataset = datasets.ImageFolder(
-        traindir,
-        transforms.Compose(
-            [
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
-            ]
-        ),
-    )
+    # train_dataset = datasets.ImageFolder(
+    #     traindir,
+    #     transforms.Compose(
+    #         [
+    #             transforms.RandomResizedCrop(224),
+    #             transforms.RandomHorizontalFlip(),
+    #             transforms.ToTensor(),
+    #             normalize,
+    #         ]
+    #     ),
+    # )
+    train_dataset = datasets.CIFAR10("datasets", download=True,
+                                     transform=transforms.Compose(
+                                         [
+                                             transforms.RandomResizedCrop(224),
+                                             transforms.RandomHorizontalFlip(),
+                                             transforms.ToTensor(),
+                                             normalize,
+                                         ]
+                                     )
+                                     )
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -363,10 +371,28 @@ def main_worker(gpu, ngpus_per_node, args):
         sampler=train_sampler,
     )
 
+    # val_loader = torch.utils.data.DataLoader(
+    #     datasets.ImageFolder(
+    #         valdir,
+    #         transforms.Compose(
+    #             [
+    #                 transforms.Resize(256),
+    #                 transforms.CenterCrop(224),
+    #                 transforms.ToTensor(),
+    #                 normalize,
+    #             ]
+    #         ),
+    #     ),
+    #     batch_size=args.batch_size,
+    #     shuffle=False,
+    #     num_workers=args.workers,
+    #     pin_memory=True,
+    # )
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(
-            valdir,
-            transforms.Compose(
+        datasets.CIFAR10(
+            "datasets",
+            train=False,
+            transform=transforms.Compose(
                 [
                     transforms.Resize(256),
                     transforms.CenterCrop(224),
@@ -401,7 +427,7 @@ def main_worker(gpu, ngpus_per_node, args):
         best_acc1 = max(acc1, best_acc1)
 
         if not args.multiprocessing_distributed or (
-            args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
+                args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
         ):
             save_checkpoint(
                 {
@@ -536,13 +562,13 @@ def sanity_check(state_dict, pretrained_weights):
 
         # name in pretrained model
         k_pre = (
-            "module.encoder_q." + k[len("module.") :]
+            "module.encoder_q." + k[len("module."):]
             if k.startswith("module.")
             else "module.encoder_q." + k
         )
 
         assert (
-            state_dict[k].cpu() == state_dict_pre[k_pre]
+                state_dict[k].cpu() == state_dict_pre[k_pre]
         ).all(), "{} is changed in linear classifier training.".format(k)
 
     print("=> sanity check passed.")
