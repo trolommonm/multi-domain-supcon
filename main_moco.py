@@ -381,7 +381,7 @@ def main_worker(gpu, ngpus_per_node, args):
         writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
 
         # train for one epoch
-        loss = train(train_loader, model, criterion, optimizer, epoch, args, writer)
+        loss = train(train_loader, model, criterion, optimizer, epoch, args)
         writer.add_scalar("loss", loss, global_step=epoch + 1)
 
         if not args.multiprocessing_distributed or (
