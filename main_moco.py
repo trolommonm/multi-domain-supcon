@@ -29,6 +29,7 @@ import torch.utils.data.distributed
 import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
+from torch.utils.tensorboard import SummaryWriter
 
 from moco_supcon_loss import MoCoSupConLoss
 
@@ -370,14 +371,16 @@ def main_worker(gpu, ngpus_per_node, args):
         drop_last=True,
     )
 
+    writer = SummaryWriter()
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args)
-
+        loss = train(train_loader, model, criterion, optimizer, epoch, args, writer)
+        writer.add_scalar("loss", loss, epoch=epoch+1)
+        
         if not args.multiprocessing_distributed or (
             args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
         ):
@@ -393,7 +396,7 @@ def main_worker(gpu, ngpus_per_node, args):
             )
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args):
+def train(train_loader, model, criterion, optimizer, epoch, args, writer):
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     losses = AverageMeter("Loss", ":.4e")
@@ -439,6 +442,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         if i % args.print_freq == 0:
             progress.display(i)
+
+    return losses.avg
 
 
 def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
