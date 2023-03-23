@@ -174,11 +174,11 @@ class MoCoSupCon(nn.Module):
         # labels: positive key indicators
         # labels = torch.zeros(logits.shape[0], dtype=torch.long).cuda()
 
-        features = torch.cat([q, k, self.queue.clone().detach().t()], dim=0)
-        all_labels = torch.cat([labels, labels, self.label_queue.clone().detach()], dim=0)
-
         # dequeue and enqueue
         self._dequeue_and_enqueue(k, labels)
+
+        features = torch.cat([q, self.queue.clone().detach().t()], dim=0)
+        all_labels = torch.cat([labels, self.label_queue.clone().detach()], dim=0)
 
         # return logits, labels
         return features, all_labels

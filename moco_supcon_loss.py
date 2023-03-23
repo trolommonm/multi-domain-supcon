@@ -36,7 +36,7 @@ class MoCoSupConLoss(nn.Module):
                   if features.is_cuda
                   else torch.device('cpu'))
 
-        batch_size = (features.shape[0] - self.K) // 2
+        batch_size = features.shape[0] - self.K
 
         labels = labels.contiguous().view(-1, 1)
         # mask = torch.eq(labels, labels.T).float().to(device)
