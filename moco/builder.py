@@ -15,7 +15,7 @@ class MoCoSupCon(nn.Module):
     https://arxiv.org/abs/1911.05722
     """
 
-    def __init__(self, base_encoder, dim=128, K=65536, m=0.999, T=0.07, mlp=False):
+    def __init__(self, base_encoder, dim=128, K=65536, m=0.999, T=0.07, mlp=True):
         """
         dim: feature dimension (default: 128)
         K: queue size; number of negative keys (default: 65536)

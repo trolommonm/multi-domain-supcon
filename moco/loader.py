@@ -30,3 +30,10 @@ class GaussianBlur(object):
         sigma = random.uniform(self.sigma[0], self.sigma[1])
         x = x.filter(ImageFilter.GaussianBlur(radius=sigma))
         return x
+
+
+class ScaleTransform(object):
+    """Scales the pixel values to between 0 and 1"""
+
+    def __call__(self, image):
+        return image / 255

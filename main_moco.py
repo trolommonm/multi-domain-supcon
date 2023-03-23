@@ -32,6 +32,7 @@ import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
 
 from moco_supcon_loss import MoCoSupConLoss
+from domainnet_dataset import DomainNetDataset
 
 model_names = sorted(
     name
@@ -177,16 +178,25 @@ parser.add_argument(
     "--moco-t", default=0.07, type=float, help="softmax temperature (default: 0.07)"
 )
 
-# options for moco v2
-parser.add_argument("--mlp", action="store_true", help="use mlp head")
-parser.add_argument(
-    "--aug-plus", action="store_true", help="use moco v2 data augmentation"
-)
 parser.add_argument("--cos", action="store_true", help="use cosine lr schedule")
+parser.add_argument("--trial", type=int, help="trial number")
 
 
 def main():
     args = parser.parse_args()
+
+    args.model_path = "./save/SupCon/domainnet_models"
+    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
+        format(args.arch, args.learning_rate, args.weight_decay, args.batch_size, args.moco_t, args.trial)
+
+    args.save_folder = os.path.join(args.model_path, args.model_name)
+    if not os.path.isdir(args.save_folder):
+        os.makedirs(args.save_folder)
+
+    # save arguments used
+    args_filename = 'args.json'
+    with open(os.path.join(args.save_folder, args_filename), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -229,7 +239,6 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # suppress printing if not master
     if args.multiprocessing_distributed and args.gpu != 0:
-
         def print_pass(*args):
             pass
 
@@ -259,7 +268,7 @@ def main_worker(gpu, ngpus_per_node, args):
         args.moco_k,
         args.moco_m,
         args.moco_t,
-        args.mlp,
+        mlp=True,
     )
     print(model)
 
@@ -327,39 +336,25 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
-    # Data loading code
-    traindir = os.path.join(args.data, "train")
     normalize = transforms.Normalize(
         mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     )
-    if args.aug_plus:
-        # MoCo v2's aug: similar to SimCLR https://arxiv.org/abs/2002.05709
-        augmentation = [
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
-            transforms.RandomApply(
-                [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8  # not strengthened
-            ),
-            transforms.RandomGrayscale(p=0.2),
-            transforms.RandomApply([moco.loader.GaussianBlur([0.1, 2.0])], p=0.5),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]
-    else:
-        # MoCo v1's aug: the same as InstDisc https://arxiv.org/abs/1805.01978
-        augmentation = [
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
-            transforms.RandomGrayscale(p=0.2),
-            transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]
 
-    # train_dataset = datasets.ImageFolder(
-    #     traindir, moco.loader.TwoCropsTransform(transforms.Compose(augmentation))
-    # )
-    train_dataset = datasets.CIFAR10(root="./datasets", download=True,
+    # MoCo v2's aug: similar to SimCLR https://arxiv.org/abs/2002.05709
+    augmentation = [
+        transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
+        transforms.RandomApply(
+            [transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8  # not strengthened
+        ),
+        transforms.RandomGrayscale(p=0.2),
+        transforms.RandomApply([moco.loader.GaussianBlur([0.1, 2.0])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+        moco.loader.ScaleTransform()
+        # transforms.ToTensor(),
+        # normalize,
+    ]
+
+    train_dataset = DomainNetDataset(annotations_file="DomainNet/train_combined.txt", img_dir="DomainNet/combined/",
                                      transform=moco.loader.TwoCropsTransform(transforms.Compose(augmentation)))
 
     if args.distributed:
@@ -377,21 +372,22 @@ def main_worker(gpu, ngpus_per_node, args):
         drop_last=True,
     )
 
-    writer = SummaryWriter()
+    writer = SummaryWriter(log_dir=args.save_folder)
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         cur_lr = adjust_learning_rate(optimizer, epoch, args)
-        writer.add_scalar("learning_rate", cur_lr, global_step=epoch+1)
+        writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
 
         # train for one epoch
         loss = train(train_loader, model, criterion, optimizer, epoch, args, writer)
-        writer.add_scalar("loss", loss, global_step=epoch+1)
+        writer.add_scalar("loss", loss, global_step=epoch + 1)
 
         if not args.multiprocessing_distributed or (
-            args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
+                args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
         ):
             if (epoch + 1) % args.save_freq == 0:
+                filename = "checkpoint_{:04d}.pth.tar".format(epoch + 1)
                 save_checkpoint(
                     {
                         "epoch": epoch + 1,
@@ -400,7 +396,7 @@ def main_worker(gpu, ngpus_per_node, args):
                         "optimizer": optimizer.state_dict(),
                     },
                     is_best=False,
-                    filename="checkpoint_{:04d}.pth.tar".format(epoch),
+                    filename=os.path.join(args.save_folder, filename),
                 )
 
 
