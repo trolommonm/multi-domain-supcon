@@ -224,7 +224,7 @@ def main_worker(gpu, ngpus_per_node, args):
         )
     # create model
     print("=> creating model '{}'".format(args.arch))
-    model = models.__dict__[args.arch]()
+    model = models.__dict__[args.arch](num_classes=10)
 
     # freeze all layers but the last fc
     for name, param in model.named_parameters():
@@ -352,7 +352,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                              transforms.RandomResizedCrop(224),
                                              transforms.RandomHorizontalFlip(),
                                              transforms.ToTensor(),
-                                             normalize,
+                                             # normalize,
                                          ]
                                      )
                                      )
@@ -397,7 +397,7 @@ def main_worker(gpu, ngpus_per_node, args):
                     transforms.Resize(256),
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
-                    normalize,
+                    # normalize,
                 ]
             ),
         ),
