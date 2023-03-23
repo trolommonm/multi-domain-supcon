@@ -5,7 +5,9 @@
 
 import random
 
+import PIL
 from PIL import ImageFilter
+from torchvision.transforms import transforms
 
 
 class TwoCropsTransform:
@@ -27,8 +29,16 @@ class GaussianBlur(object):
         self.sigma = sigma
 
     def __call__(self, x):
+        isPIL = isinstance(x, PIL.Image.Image)
+        if not isPIL:
+            x = transforms.ToPILImage()(x)
+        
         sigma = random.uniform(self.sigma[0], self.sigma[1])
         x = x.filter(ImageFilter.GaussianBlur(radius=sigma))
+
+        if not isPIL:
+            x = transforms.ToTensor()(x)
+
         return x
 
 
