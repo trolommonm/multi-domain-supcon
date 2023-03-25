@@ -319,7 +319,7 @@ def main_worker(gpu, ngpus_per_node, args):
         weight_decay=args.weight_decay,
     )
 
-    scalar = GradScaler(enabled=args.amp)
+    scaler = GradScaler(enabled=args.amp)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -334,7 +334,7 @@ def main_worker(gpu, ngpus_per_node, args):
             args.start_epoch = checkpoint["epoch"]
             model.load_state_dict(checkpoint["state_dict"])
             optimizer.load_state_dict(checkpoint["optimizer"])
-            scalar.load_state_dict(checkpoint["scalar"])
+            scaler.load_state_dict(checkpoint["scaler"])
             print(
                 "=> loaded checkpoint '{}' (epoch {})".format(
                     args.resume, checkpoint["epoch"]
@@ -389,7 +389,7 @@ def main_worker(gpu, ngpus_per_node, args):
         writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
 
         # train for one epoch
-        loss = train(train_loader, model, criterion, optimizer, epoch, args, scalar)
+        loss = train(train_loader, model, criterion, optimizer, epoch, args, scaler)
         writer.add_scalar("loss", loss, global_step=epoch + 1)
 
         if not args.multiprocessing_distributed or (
@@ -403,14 +403,14 @@ def main_worker(gpu, ngpus_per_node, args):
                         "arch": args.arch,
                         "state_dict": model.state_dict(),
                         "optimizer": optimizer.state_dict(),
-                        "scalar": scalar.state_dict(),
+                        "scaler": scaler.state_dict(),
                     },
                     is_best=False,
                     filename=os.path.join(args.save_folder, filename),
                 )
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args, scalar):
+def train(train_loader, model, criterion, optimizer, epoch, args, scaler):
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     losses = AverageMeter("Loss", ":.4e")
