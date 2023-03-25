@@ -435,7 +435,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, scalar):
             images[1] = images[1].cuda(args.gpu, non_blocking=True)
 
         # compute output
-        with autocast(enabled=opt.amp):
+        with autocast(enabled=args.amp):
             output, target = model(im_q=images[0], im_k=images[1], labels=labels)
             loss = criterion(output, target)
 
