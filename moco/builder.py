@@ -177,8 +177,8 @@ class MoCoSupCon(nn.Module):
         # dequeue and enqueue
         self._dequeue_and_enqueue(k, labels)
 
-        features = torch.cat([q, self.queue.clone().detach().t()], dim=0)
-        all_labels = torch.cat([labels, self.label_queue.clone().detach()], dim=0)
+        features = torch.cat([q, self.queue.detach().clone().t()], dim=0)
+        all_labels = torch.cat([labels, self.label_queue.detach().clone()], dim=0)
 
         # return logits, labels
         return features, all_labels
