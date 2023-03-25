@@ -31,6 +31,8 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
+from torch.cuda.amp import autocast
+from torch.cuda.amp import GradScaler
 
 from moco_supcon_loss import MoCoSupConLoss
 from domainnet_dataset import DomainNetDataset
@@ -181,14 +183,17 @@ parser.add_argument(
 
 parser.add_argument("--cos", action="store_true", help="use cosine lr schedule")
 parser.add_argument("--trial", type=int, help="trial number")
+parser.add_argument("--amp", action="store_true", help="use automatic mixed precision")
 
 
 def main():
     args = parser.parse_args()
 
     args.model_path = "./save/SupCon/domainnet_models"
-    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
+    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}_{}". \
         format(args.arch, args.lr, args.weight_decay, args.batch_size, args.moco_t, args.trial)
+    if args.amp:
+        args.model_name += "_amp"
 
     args.save_folder = os.path.join(args.model_path, args.model_name)
     if not os.path.isdir(args.save_folder):
@@ -314,6 +319,8 @@ def main_worker(gpu, ngpus_per_node, args):
         weight_decay=args.weight_decay,
     )
 
+    scalar = GradScaler(enabled=args.amp)
+
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -327,6 +334,7 @@ def main_worker(gpu, ngpus_per_node, args):
             args.start_epoch = checkpoint["epoch"]
             model.load_state_dict(checkpoint["state_dict"])
             optimizer.load_state_dict(checkpoint["optimizer"])
+            scalar.load_state_dict(checkpoint["scalar"])
             print(
                 "=> loaded checkpoint '{}' (epoch {})".format(
                     args.resume, checkpoint["epoch"]
@@ -381,7 +389,7 @@ def main_worker(gpu, ngpus_per_node, args):
         writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
 
         # train for one epoch
-        loss = train(train_loader, model, criterion, optimizer, epoch, args)
+        loss = train(train_loader, model, criterion, optimizer, epoch, args, scalar)
         writer.add_scalar("loss", loss, global_step=epoch + 1)
 
         if not args.multiprocessing_distributed or (
@@ -395,13 +403,14 @@ def main_worker(gpu, ngpus_per_node, args):
                         "arch": args.arch,
                         "state_dict": model.state_dict(),
                         "optimizer": optimizer.state_dict(),
+                        "scalar": scalar.state_dict(),
                     },
                     is_best=False,
                     filename=os.path.join(args.save_folder, filename),
                 )
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args):
+def train(train_loader, model, criterion, optimizer, epoch, args, scalar):
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     losses = AverageMeter("Loss", ":.4e")
@@ -426,8 +435,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             images[1] = images[1].cuda(args.gpu, non_blocking=True)
 
         # compute output
-        output, target = model(im_q=images[0], im_k=images[1], labels=labels)
-        loss = criterion(output, target)
+        with autocast(enabled=opt.amp):
+            output, target = model(im_q=images[0], im_k=images[1], labels=labels)
+            loss = criterion(output, target)
 
         # acc1/acc5 are (K+1)-way contrast classifier accuracy
         # measure accuracy and record loss
@@ -438,8 +448,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        # loss.backward()
+        # optimizer.step()
 
         # measure elapsed time
         batch_time.update(time.time() - end)

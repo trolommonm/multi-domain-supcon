@@ -32,7 +32,7 @@ class GaussianBlur(object):
         isPIL = isinstance(x, PIL.Image.Image)
         if not isPIL:
             x = transforms.ToPILImage()(x)
-        
+
         sigma = random.uniform(self.sigma[0], self.sigma[1])
         x = x.filter(ImageFilter.GaussianBlur(radius=sigma))
 
