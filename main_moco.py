@@ -190,7 +190,7 @@ def main():
     args = parser.parse_args()
 
     args.model_path = "./save/SupCon/domainnet_models"
-    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}_{}". \
+    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
         format(args.arch, args.lr, args.weight_decay, args.batch_size, args.moco_t, args.trial)
     if args.amp:
         args.model_name += "_amp"
