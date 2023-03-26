@@ -181,7 +181,7 @@ class MoCoSupCon(nn.Module):
 
         # compute logits
         anchor_dot_contrast = torch.div(
-            torch.matmul(q, self.queue.detach().t()),
+            torch.matmul(q, self.queue.detach()),
             self.temperature)
 
         # for numerical stability
