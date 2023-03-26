@@ -381,16 +381,16 @@ def main_worker(gpu, ngpus_per_node, args):
         drop_last=True,
     )
 
-    writer = SummaryWriter(log_dir=args.save_folder)
+    writer = SummaryWriter(log_dir=args.save_folder) if args.rank % ngpus_per_node == 0 else None
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         cur_lr = adjust_learning_rate(optimizer, epoch, args)
-        writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
+        if writer: writer.add_scalar("learning_rate", cur_lr, global_step=epoch + 1)
 
         # train for one epoch
         loss = train(train_loader, model, criterion, optimizer, epoch, args, scaler)
-        writer.add_scalar("loss", loss, global_step=epoch + 1)
+        if writer: writer.add_scalar("loss", loss, global_step=epoch + 1)
 
         if not args.multiprocessing_distributed or (
                 args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
@@ -437,8 +437,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, scaler):
 
         # compute output
         with autocast(enabled=args.amp):
-            output, target = model(im_q=images[0], im_k=images[1], labels=labels)
-            loss = criterion(output, target)
+            # output, target = model(im_q=images[0], im_k=images[1], labels=labels)
+            # loss = criterion(output, target)
+            loss = model(im_q=images[0], im_k=images[1], labels=labels)
 
         # acc1/acc5 are (K+1)-way contrast classifier accuracy
         # measure accuracy and record loss

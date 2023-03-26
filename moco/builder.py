@@ -177,11 +177,34 @@ class MoCoSupCon(nn.Module):
         # dequeue and enqueue
         self._dequeue_and_enqueue(k, labels)
 
-        features = torch.cat([q, self.queue.detach().clone().t()], dim=0)
-        all_labels = torch.cat([labels, self.label_queue.detach().clone()], dim=0)
+        mask = torch.eq(labels.view(-1, 1), self.label_queue)
+
+        # compute logits
+        anchor_dot_contrast = torch.div(
+            torch.matmul(q, self.queue.detach().t()),
+            self.temperature)
+
+        # for numerical stability
+        # logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
+        # logits = anchor_dot_contrast - logits_max.detach()
+        logits = anchor_dot_contrast
+
+        exp_logits = torch.exp(logits)
+        log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
+
+        # compute mean of log-likelihood over positive
+        mean_log_prob_pos = - (mask * log_prob).sum(1) / mask.sum(1)
+
+        # loss
+        loss = mean_log_prob_pos.mean()
+
+        # features = torch.cat([q, self.queue.detach().clone().t()], dim=0)
+        # all_labels = torch.cat([labels, self.label_queue.detach().clone()], dim=0)
 
         # return logits, labels
-        return features, all_labels
+        # return features, all_labels
+
+        return loss
 
 
 # utils
