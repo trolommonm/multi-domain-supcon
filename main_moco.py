@@ -131,6 +131,16 @@ parser.add_argument(
     help="path to latest checkpoint (default: none)",
 )
 parser.add_argument(
+    "--model-path",
+    type=str,
+    required=False
+)
+parser.add_argument(
+    "--model-name",
+    type=str,
+    required=False
+)
+parser.add_argument(
     "--world-size",
     default=-1,
     type=int,
@@ -189,11 +199,15 @@ parser.add_argument("--amp", action="store_true", help="use automatic mixed prec
 def main():
     args = parser.parse_args()
 
-    args.model_path = "./save/SupCon/domainnet_models"
-    args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
-        format(args.arch, args.lr, args.weight_decay, args.batch_size, args.moco_t, args.trial)
-    if args.amp:
-        args.model_name += "_amp"
+    if not args.resume:
+        args.model_path = "./save/SupCon/domainnet_models"
+        args.model_name = "supcon_domainnet_{}_lr_{}_decay_{}_bsz_{}_temp_{}_trial_{}". \
+            format(args.arch, args.lr, args.weight_decay, args.batch_size, args.moco_t, args.trial)
+        if args.amp:
+            args.model_name += "_amp"
+    else:
+        assert hasattr(args, "model_name")
+        assert hasattr(args, "model_path")
 
     args.save_folder = os.path.join(args.model_path, args.model_name)
     if not os.path.isdir(args.save_folder):
